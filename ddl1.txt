@@ -1,0 +1,266 @@
+-- MySQL Workbench Forward Engineering
+
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
+-- -----------------------------------------------------
+-- Schema mydb
+-- -----------------------------------------------------
+-- -----------------------------------------------------
+-- Schema schoolms
+-- -----------------------------------------------------
+
+-- -----------------------------------------------------
+-- Schema schoolms
+-- -----------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS `schoolms` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci ;
+USE `schoolms` ;
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`address_student`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`address_student` (
+  `Address_ID` INT NOT NULL AUTO_INCREMENT,
+  `Present_Address` VARCHAR(255) NULL DEFAULT NULL,
+  `Permanent_Address` VARCHAR(255) NULL DEFAULT NULL,
+  PRIMARY KEY (`Address_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 51
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`employee_address`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`employee_address` (
+  `Address_ID` INT NOT NULL AUTO_INCREMENT,
+  `Present_Address` VARCHAR(255) NULL DEFAULT NULL,
+  `Permanent_Address` VARCHAR(255) NULL DEFAULT NULL,
+  PRIMARY KEY (`Address_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 11
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`employee`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`employee` (
+  `Employee_ID` INT NOT NULL AUTO_INCREMENT,
+  `First_Name` VARCHAR(50) NULL DEFAULT NULL,
+  `Last_Name` VARCHAR(50) NULL DEFAULT NULL,
+  `Address_ID` INT NULL DEFAULT NULL,
+  `Role` VARCHAR(50) NULL DEFAULT NULL,
+  `Salary` DECIMAL(10,2) NULL DEFAULT NULL,
+  `Salary_Bonus` DECIMAL(10,2) NULL DEFAULT NULL,
+  `Date_of_Joining` DATE NULL DEFAULT NULL,
+  `Experience` INT NULL DEFAULT NULL,
+  `Contact_Num` VARCHAR(20) NULL DEFAULT NULL,
+  `Emergency_Num` VARCHAR(20) NULL DEFAULT NULL,
+  PRIMARY KEY (`Employee_ID`),
+  INDEX `Address_ID` (`Address_ID` ASC) VISIBLE,
+  CONSTRAINT `employee_ibfk_1`
+    FOREIGN KEY (`Address_ID`)
+    REFERENCES `schoolms`.`employee_address` (`Address_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 11
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`class`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`class` (
+  `Class_ID` INT NOT NULL AUTO_INCREMENT,
+  `Class_Name` VARCHAR(50) NULL DEFAULT NULL,
+  `Employee_ID` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`Class_ID`),
+  INDEX `Employee_ID` (`Employee_ID` ASC) VISIBLE,
+  CONSTRAINT `class_ibfk_1`
+    FOREIGN KEY (`Employee_ID`)
+    REFERENCES `schoolms`.`employee` (`Employee_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 11
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`employee_attendance`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`employee_attendance` (
+  `Attendance_ID` INT NOT NULL AUTO_INCREMENT,
+  `Employee_ID` INT NULL DEFAULT NULL,
+  `Date` DATE NULL DEFAULT NULL,
+  `Check_In_Time` TIME NULL DEFAULT NULL,
+  `Status` VARCHAR(20) NULL DEFAULT NULL,
+  `Deduction_Applied` DECIMAL(10,2) NULL DEFAULT NULL,
+  PRIMARY KEY (`Attendance_ID`),
+  INDEX `Employee_ID` (`Employee_ID` ASC) VISIBLE,
+  CONSTRAINT `employee_attendance_ibfk_1`
+    FOREIGN KEY (`Employee_ID`)
+    REFERENCES `schoolms`.`employee` (`Employee_ID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`exam`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`exam` (
+  `Exam_ID` INT NOT NULL AUTO_INCREMENT,
+  `Exam_Name` VARCHAR(100) NULL DEFAULT NULL,
+  `Date` DATE NULL DEFAULT NULL,
+  PRIMARY KEY (`Exam_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 4
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`student`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`student` (
+  `Student_ID` INT NOT NULL AUTO_INCREMENT,
+  `First_Name` VARCHAR(50) NULL DEFAULT NULL,
+  `Last_Name` VARCHAR(50) NULL DEFAULT NULL,
+  `DOB` DATE NULL DEFAULT NULL,
+  `Class_ID` INT NULL DEFAULT NULL,
+  `Address_ID` INT NULL DEFAULT NULL,
+  `Emergency_Num` VARCHAR(20) NULL DEFAULT NULL,
+  `WhatsApp_Num` VARCHAR(20) NULL DEFAULT NULL,
+  `Fathers_Qualification` VARCHAR(100) NULL DEFAULT NULL,
+  `Mother_Qualification` VARCHAR(100) NULL DEFAULT NULL,
+  `Guardian_Income` INT NULL DEFAULT NULL,
+  `Previous_School` VARCHAR(100) NULL DEFAULT NULL,
+  `Contact_Number` VARCHAR(20) NULL DEFAULT NULL,
+  `Admission_num` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`Student_ID`),
+  INDEX `Class_ID` (`Class_ID` ASC) VISIBLE,
+  INDEX `Address_ID` (`Address_ID` ASC) VISIBLE,
+  CONSTRAINT `student_ibfk_1`
+    FOREIGN KEY (`Class_ID`)
+    REFERENCES `schoolms`.`class` (`Class_ID`),
+  CONSTRAINT `student_ibfk_2`
+    FOREIGN KEY (`Address_ID`)
+    REFERENCES `schoolms`.`address_student` (`Address_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 51
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`exam_result`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`exam_result` (
+  `Exam_ID` INT NOT NULL,
+  `Student_ID` INT NOT NULL,
+  `Marks` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`Exam_ID`, `Student_ID`),
+  INDEX `Student_ID` (`Student_ID` ASC) VISIBLE,
+  CONSTRAINT `exam_result_ibfk_1`
+    FOREIGN KEY (`Exam_ID`)
+    REFERENCES `schoolms`.`exam` (`Exam_ID`),
+  CONSTRAINT `exam_result_ibfk_2`
+    FOREIGN KEY (`Student_ID`)
+    REFERENCES `schoolms`.`student` (`Student_ID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`expense`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`expense` (
+  `Expense_ID` INT NOT NULL AUTO_INCREMENT,
+  `Amount` DECIMAL(10,2) NULL DEFAULT NULL,
+  `Description` TEXT NULL DEFAULT NULL,
+  `Date` DATE NULL DEFAULT NULL,
+  PRIMARY KEY (`Expense_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 7
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`fees`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`fees` (
+  `Fees_ID` INT NOT NULL AUTO_INCREMENT,
+  `Student_ID` INT NULL DEFAULT NULL,
+  `Status` VARCHAR(50) NULL DEFAULT NULL,
+  `Pay_Date` DATE NULL DEFAULT NULL,
+  `Entered_By` VARCHAR(100) NULL DEFAULT NULL,
+  PRIMARY KEY (`Fees_ID`),
+  INDEX `Student_ID` (`Student_ID` ASC) VISIBLE,
+  CONSTRAINT `fees_ibfk_1`
+    FOREIGN KEY (`Student_ID`)
+    REFERENCES `schoolms`.`student` (`Student_ID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`subject`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`subject` (
+  `Subject_ID` INT NOT NULL AUTO_INCREMENT,
+  `Subject_Name` VARCHAR(100) NULL DEFAULT NULL,
+  PRIMARY KEY (`Subject_ID`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 9
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`teachersubjectclass`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`teachersubjectclass` (
+  `TSC_ID` INT NOT NULL AUTO_INCREMENT,
+  `Employee_ID` INT NULL DEFAULT NULL,
+  `Subject_ID` INT NULL DEFAULT NULL,
+  `Class_ID` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`TSC_ID`),
+  INDEX `Employee_ID` (`Employee_ID` ASC) VISIBLE,
+  INDEX `Subject_ID` (`Subject_ID` ASC) VISIBLE,
+  INDEX `Class_ID` (`Class_ID` ASC) VISIBLE,
+  CONSTRAINT `teachersubjectclass_ibfk_1`
+    FOREIGN KEY (`Employee_ID`)
+    REFERENCES `schoolms`.`employee` (`Employee_ID`),
+  CONSTRAINT `teachersubjectclass_ibfk_2`
+    FOREIGN KEY (`Subject_ID`)
+    REFERENCES `schoolms`.`subject` (`Subject_ID`),
+  CONSTRAINT `teachersubjectclass_ibfk_3`
+    FOREIGN KEY (`Class_ID`)
+    REFERENCES `schoolms`.`class` (`Class_ID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `schoolms`.`user_credential`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `schoolms`.`user_credential` (
+  `User_ID` VARCHAR(50) NOT NULL,
+  `Password` VARCHAR(100) NULL DEFAULT NULL,
+  PRIMARY KEY (`User_ID`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
