@@ -1,0 +1,1548 @@
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+#include <QtSql/QSqlQuery>
+#include<QSqlDatabase>
+#include<QDebug>
+#include<QSqlDriver>
+#include <QMessageBox>     // To show error or information dialogs
+#include <QTableView>      // Your view widget
+#include<QSql>
+#include<QSqlQuery>
+#include <utility>
+#include<QMessageBox>
+#include <QSqlQueryModel>  // For holding and displaying query results
+#include <QSqlError>
+#include <QDir>
+#include <QDebug>
+#include <QSqlRelationalTableModel>
+#include <QSqlRelation>
+#include <QSqlRelationalDelegate>
+#include <QSqlRecord>
+
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+
+{
+    ui->setupUi(this);
+
+
+QSqlDatabase    db = QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schoolms");//replace with the databse file name
+    db.setUserName("root");
+    db.setPassword("241477");//replace with password of db
+
+
+                    // expense_accountant_
+
+  expensemodel = new QSqlTableModel(this);// this is for accountant
+    expensemodel->setTable("expense");
+    expensemodel->setEditStrategy(QSqlTableModel::OnFieldChange);  // Edits auto-save
+    expensemodel->select();  // Load data from the DB
+
+    ui->tableView_17->setModel(expensemodel);  // Link model to your table view
+    ui->tableView_17->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);  // Stretch columns
+    ui->tableView_17->setColumnHidden(0, true);
+    ui->tableView_17->setColumnHidden(expensemodel->fieldIndex("Entered_By"), true);
+
+    ui->tableView_17->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+    connect(ui->comboBox, &QComboBox::currentTextChanged, this, [=](const QString& selectedMonth) {
+        QSqlTableModel *expensemodel = qobject_cast<QSqlTableModel*>(ui->tableView_17->model());
+        if (!expensemodel)
+            return;
+
+        if (selectedMonth == "All") {
+            expensemodel->setFilter("");  // No filter, show all rows
+        } else {
+            expensemodel->setFilter(QString("month = '%1'").arg(selectedMonth));
+        }
+        expensemodel->select();  // Apply the filter
+    });
+
+                            //teacher_viewclass
+    connect(ui->comboBox_12, &QComboBox::currentTextChanged, this, [=](const QString &className) {
+        QString name = ui->lineEdit_37->text().trimmed();
+        QString admissionNo = ui->lineEdit_38->text().trimmed();
+
+        QString queryStr = R"(
+        SELECT
+            student.Student_ID,
+            student.First_Name,
+            student.Last_Name,
+            CONCAT(student.First_Name, ' ', student.Last_Name) AS StudentName,
+            student.DOB,
+            student.Class_ID,
+            class.Class_Name AS Class,
+            student.Address_ID,
+            address_student.Present_Address,
+            student.Fathers_Qualification,
+            student.Contact_Number,
+            student.Admission_Number
+        FROM student
+        JOIN class ON student.Class_ID = class.Class_ID
+        LEFT JOIN address_student ON student.Address_ID = address_student.Address_ID
+        WHERE 1 = 1
+    )";
+
+        if (!name.isEmpty()) {
+            queryStr += QString(" AND CONCAT(student.First_Name, ' ', student.Last_Name) LIKE '%%1%'").arg(name);
+        }
+
+        if (!admissionNo.isEmpty()) {
+            queryStr += QString(" AND student.Admission_Number = '%1'").arg(admissionNo);
+        }
+
+        if (className != "Class") {
+            queryStr += QString(" AND class.Class_Name = '%1'").arg(className);
+        }
+        if (className == "no Class") {
+            // Show nothing if 'none' is selected
+            ui->tableView_13->setModel(nullptr);
+            return;
+        }
+
+        QSqlQueryModel* model = new QSqlQueryModel(this);
+        model->setQuery(queryStr);
+        ui->tableView_13->setModel(model);
+        ui->tableView_13->setColumnHidden(0, true);
+        ui->tableView_13->setColumnHidden(5, true);
+        ui->tableView_13->setColumnHidden(7, true);
+        ui->tableView_12->resizeColumnsToContents();
+
+    });
+
+                            //teacher_marks
+    model = new QSqlTableModel(this);   // for teacher eam
+    model->setTable("exam_result_view");
+    model->setEditStrategy(QSqlTableModel::OnFieldChange);
+    model->select();
+    ui->tableView_20->setModel(model);
+    ui->tableView_20->setColumnHidden(model->fieldIndex("Exam_ID"), true);
+    ui->tableView_20->setColumnHidden(model->fieldIndex("Student_ID"), true);
+    ui->tableView_20->setModel(model);  // Link model to your table view
+    ui->tableView_20->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);  // Stretch columns
+    ui->tableView_20->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+    model->setHeaderData(model->fieldIndex("Class_ID"), Qt::Horizontal, QObject::tr("Class"));
+
+    connect(ui->comboBox_13, &QComboBox::currentTextChanged, this, [=](const QString& selectedClass) {
+        if (selectedClass == "-") {
+            model->setFilter("");  // No filter, show all rows
+        } else {
+            model->setFilter(QString("Class_ID = %1").arg(selectedClass.toInt()));  // Filter by Class_ID
+        }
+        model->select();  // Apply the filter
+    });
+    connect(ui->comboBox_18, &QComboBox::currentTextChanged, this, [=](const QString& examno) {
+        if (examno == "Exam") {
+            model->setFilter("");  // No filter, show all rows
+        } else {
+                    model->setFilter(QString("Exam_name = '%1'").arg(examno));
+        }
+        model->select();  // Apply the filter
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        //principal
+
+
+    principal1model = new QSqlTableModel(this);
+    principal1model->setTable("employee_edit_view");
+    principal1model->setEditStrategy(QSqlTableModel::OnFieldChange);  // auto save on edit
+    principal1model->select();
+
+    ui->tableView_6->setModel(principal1model);
+
+    ui->tableView_6->setColumnHidden(principal1model->fieldIndex("Address_ID"), true);
+
+    ui->tableView_6->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+
+    // Empployee_attendence
+    QDate selectedDate = ui->dateEdit_2->date();
+    QString dateStr = selectedDate.toString("yyyy-MM-dd");
+
+    QSqlTableModel *attModel = new QSqlTableModel(this);
+    attModel->setTable("employee_attendance_view");
+    attModel->setEditStrategy(QSqlTableModel::OnFieldChange);
+    attModel->setFilter(QString("Date = '%1'").arg(dateStr));
+    attModel->select();
+
+    ui->tableView_4->setModel(attModel);
+
+    ui->tableView_4->setColumnHidden(attModel->fieldIndex("Attendance_ID"), true);
+    ui->tableView_4->setColumnHidden(attModel->fieldIndex("Employee_ID"), true);
+
+    ui->tableView_4->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    ui->tableView_4->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+
+
+
+                //principal_expense
+
+    principalexmodel = new QSqlTableModel(this);
+    principalexmodel->setTable("expense");
+    principalexmodel->setEditStrategy(QSqlTableModel::OnFieldChange);
+    principalexmodel->select();  // Load data from DB
+
+    ui->tableView_18->setModel(principalexmodel);  // Set model to table view
+    ui->tableView_18->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableView_18->setColumnHidden(0, true);
+
+    ui->tableView_18->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+
+    // Filter based on selected month from comboBox_2
+    connect(ui->comboBox_2, &QComboBox::currentTextChanged, this, [=](const QString& selectedMonth) {
+        if (!principalexmodel)
+            return;
+
+        if (selectedMonth == "All") {
+            principalexmodel->setFilter("");  // Show all records
+        } else {
+            principalexmodel->setFilter(QString("month = '%1'").arg(selectedMonth));
+        }
+        principalexmodel->select();  // Refresh model with new filter
+    });
+
+
+
+
+            //principal_teacher_manage
+
+    tscmodel = new QSqlTableModel(this);
+    tscmodel->setTable("teacher_subject_class_view");
+    tscmodel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    tscmodel->select();
+
+    tscmodel->setHeaderData(tscmodel->fieldIndex("Full_Name"), Qt::Horizontal, "Teacher");
+    tscmodel->setHeaderData(tscmodel->fieldIndex("Subject_Name"), Qt::Horizontal, "Subject");
+    tscmodel->setHeaderData(tscmodel->fieldIndex("Class_Name"), Qt::Horizontal, "Class");
+
+    ui->tableView_19->setModel(tscmodel);
+    ui->tableView_19->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->tableView_19->setColumnHidden(tscmodel->fieldIndex("Employee_ID"), true);
+    ui->tableView_19->setColumnHidden(tscmodel->fieldIndex("Subject_ID"), true);
+    ui->tableView_19->setColumnHidden(tscmodel->fieldIndex("Class_ID"), true);
+    ui->tableView_19->setColumnHidden(tscmodel->fieldIndex("TSC_ID"), true);
+    ui->tableView_19->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    connect(ui->comboBox_4, &QComboBox::currentTextChanged, this, [=](const QString &subject){
+        if (subject == "Subjects" || subject.isEmpty()) {
+            tscmodel->setFilter("");
+        } else {
+            tscmodel->setFilter(QString("Subject_Name = '%1'").arg(subject));
+        }
+        tscmodel->select();
+    });
+
+    connect(ui->comboBox_3, &QComboBox::currentTextChanged, this, [=](const QString &className){
+        if (className == "Class" || className.isEmpty()) {
+            tscmodel->setFilter("");
+        } else {
+            tscmodel->setFilter(QString("Class_Name = '%1'").arg(className));
+        }
+        tscmodel->select();
+    });
+
+    //principal_fees
+    feesModel = new QSqlTableModel(this);
+    feesModel->setTable("fees");
+    feesModel->setEditStrategy(QSqlTableModel::OnFieldChange);
+    feesModel->select();
+
+    ui->tableView_16->setModel(feesModel);
+    ui->tableView_16->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+  ui->tableView_16->setColumnHidden(feesModel->fieldIndex("Fees_ID"), true);
+
+
+
+            //admin
+
+    //admin_studentedit
+
+    studentViewModel = new QSqlTableModel(this);
+    studentViewModel->setTable("student_details_view");
+    studentViewModel->setEditStrategy(QSqlTableModel::OnFieldChange);
+    studentViewModel->select();
+
+    ui->tableView_12->setModel(studentViewModel);
+    ui->tableView_12->setColumnHidden(studentViewModel->fieldIndex("Address_ID"), true);
+    ui->tableView_12->setEditTriggers(
+        QAbstractItemView::DoubleClicked |
+        QAbstractItemView::SelectedClicked |
+        QAbstractItemView::EditKeyPressed
+        );
+    studentViewModel->setHeaderData(studentViewModel->fieldIndex("Class_ID"), Qt::Horizontal, "Class");
+    ui->tableView_12->setColumnHidden(studentViewModel->fieldIndex("Student_ID"), true);
+    connect(ui->comboBox_11, &QComboBox::currentTextChanged, this, [=](const QString &selectedClass) {
+        QString filter;
+        if (selectedClass != "All") {
+            filter = QString("Class_ID = %1").arg(selectedClass.toInt());
+        }
+        studentViewModel->setFilter(filter);
+        studentViewModel->select();
+    });
+
+    connect(ui->pushButton_166, &QPushButton::clicked, this, [=]() {
+        QString classFilter;
+        QString selectedClass = ui->comboBox_11->currentText();
+        if (selectedClass != "All") {
+            classFilter = QString("Class_ID = %1").arg(selectedClass.toInt());
+        }
+
+        QString name = ui->lineEdit_18->text().trimmed();
+        QString admNo = ui->lineEdit_25->text().trimmed();
+        if (name.isEmpty() && admNo.isEmpty()) {
+            QMessageBox::warning(this, "Input Error", "Please enter Student Name or Admission Number.");
+            return;
+        }
+        QString filter;
+
+        if (!classFilter.isEmpty())
+            filter += classFilter;
+
+        if (!name.isEmpty()) {
+            if (!filter.isEmpty()) filter += " AND ";
+            filter += QString("`Student Name` LIKE '%%1%'").arg(name);
+        }
+
+        if (!admNo.isEmpty()) {
+            if (!filter.isEmpty()) filter += " AND ";
+            filter += QString("Admission_Number = '%1'").arg(admNo);
+        }
+
+        studentViewModel->setFilter(filter);
+        studentViewModel->select();
+    });
+
+
+}
+
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+// button navigation function declarations
+void MainWindow:: goToPage1()
+{
+    ui->stackedWidget->setCurrentIndex(0);
+}
+void MainWindow:: goToPage2()
+{
+    ui->stackedWidget->setCurrentIndex(1);
+}
+void MainWindow:: goToPage3()
+{
+    ui->stackedWidget->setCurrentIndex(2);
+}
+void MainWindow:: goToPage4()
+{
+    ui->stackedWidget->setCurrentIndex(3);
+}
+void MainWindow:: goToPage5()
+{
+    ui->stackedWidget->setCurrentIndex(4);
+}
+void MainWindow:: goToPage6()
+{
+    ui->stackedWidget->setCurrentIndex(5);
+}
+void MainWindow:: goToPage7()
+{
+    ui->stackedWidget->setCurrentIndex(6);
+}
+void MainWindow:: goToPage8()
+{
+    ui->stackedWidget->setCurrentIndex(7);
+}
+void MainWindow:: goToPage9()
+{
+    ui->stackedWidget->setCurrentIndex(8);
+}
+void MainWindow:: goToPage10()
+{
+    ui->stackedWidget->setCurrentIndex(9);
+}
+void MainWindow:: goToPage11()
+{
+    ui->stackedWidget->setCurrentIndex(10);
+}
+void MainWindow:: goToPage12()
+{
+    ui->stackedWidget->setCurrentIndex(11);
+}
+void MainWindow:: goToPage13()
+{
+    ui->stackedWidget->setCurrentIndex(12);
+}
+void MainWindow:: goToPage14()
+{
+    ui->stackedWidget->setCurrentIndex(13);
+}
+void MainWindow:: goToPage15()
+{
+    ui->stackedWidget->setCurrentIndex(14);
+}
+void MainWindow:: goToPage16()
+{
+    ui->stackedWidget->setCurrentIndex(15);
+}
+void MainWindow:: goToPage17()
+{
+    ui->stackedWidget->setCurrentIndex(16);
+}
+
+void MainWindow:: goToPage18()
+{
+    ui->stackedWidget->setCurrentIndex(17);
+}
+
+void MainWindow:: goToPage19()
+{
+    ui->stackedWidget->setCurrentIndex(18);
+}
+
+           //button navigation
+void MainWindow::on_pushButton_2_clicked()
+{
+    goToPage3();
+}
+void MainWindow::on_pushButton_3_clicked()
+{
+    goToPage4();
+}
+void MainWindow::on_pushButton_4_clicked()
+{
+    goToPage5();
+}
+void MainWindow::on_pushButton_8_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_14_clicked()
+{
+    goToPage2();
+}
+void MainWindow::on_pushButton_12_clicked()
+{
+    goToPage4();
+}
+void MainWindow::on_pushButton_11_clicked()
+{
+    goToPage5();
+}
+void MainWindow::on_pushButton_10_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_21_clicked()
+{
+    goToPage2();
+}
+void MainWindow::on_pushButton_20_clicked()
+{
+    goToPage3();
+}
+void MainWindow::on_pushButton_18_clicked()
+{
+    goToPage5();
+}
+void MainWindow::on_pushButton_24_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_26_clicked()
+{
+    goToPage2();
+}
+void MainWindow::on_pushButton_25_clicked()
+{
+    goToPage3();
+}
+void MainWindow::on_pushButton_6_clicked()
+{
+    goToPage4();
+}
+void MainWindow::on_pushButton_17_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_33_clicked()
+{
+    goToPage2();
+}
+void MainWindow::on_pushButton_32_clicked()
+{
+    goToPage3();
+}
+void MainWindow::on_pushButton_31_clicked()
+{
+    goToPage4();
+}
+void MainWindow::on_pushButton_30_clicked()
+{
+    goToPage5();
+}
+void MainWindow::on_pushButton_29_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_46_clicked()
+{
+    goToPage8();
+}
+void MainWindow::on_pushButton_45_clicked()
+{
+    goToPage9();
+}
+void MainWindow::on_pushButton_43_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_51_clicked()
+{
+    goToPage7();
+}
+void MainWindow::on_pushButton_48_clicked()
+{
+    goToPage9();
+}
+void MainWindow::on_pushButton_44_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_54_clicked()
+{
+    goToPage7();
+}
+void MainWindow::on_pushButton_53_clicked()
+{
+    goToPage8();
+}
+void MainWindow::on_pushButton_56_clicked()
+{
+    goToPage1();
+}
+
+void MainWindow::on_pushButton_22_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_15_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_9_clicked()
+{
+    goToPage13();
+}
+void MainWindow::on_pushButton_34_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_73_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_103_clicked()
+{
+    goToPage16();
+}
+void MainWindow::on_pushButton_41_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_39_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_38_clicked()
+{
+    goToPage13();
+}
+void MainWindow::on_pushButton_42_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_72_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_102_clicked()
+{
+    goToPage16();
+}
+void MainWindow::on_pushButton_64_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_60_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_58_clicked()
+{
+    goToPage13();
+}
+void MainWindow::on_pushButton_65_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_74_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_101_clicked()
+{
+    goToPage16();
+}
+
+void MainWindow::on_pushButton_70_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_69_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_68_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_71_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_75_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_100_clicked()
+{
+    goToPage16();
+}
+void MainWindow::on_pushButton_79_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_78_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_77_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_76_clicked()
+{
+    goToPage13();
+}
+void MainWindow::on_pushButton_81_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_99_clicked()
+{
+    goToPage16();
+}
+void MainWindow::on_pushButton_86_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_85_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_84_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_83_clicked()
+{
+    goToPage13();
+}
+
+
+void MainWindow::on_pushButton_87_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_98_clicked()
+{
+    goToPage16();
+}
+void MainWindow::on_pushButton_94_clicked()
+{
+    goToPage10();
+}
+void MainWindow::on_pushButton_93_clicked()
+{
+    goToPage11();
+}
+void MainWindow::on_pushButton_92_clicked()
+{
+    goToPage12();
+}
+void MainWindow::on_pushButton_91_clicked()
+{
+    goToPage13();
+}
+void MainWindow::on_pushButton_95_clicked()
+{
+    goToPage14();
+}
+void MainWindow::on_pushButton_96_clicked()
+{
+    goToPage15();
+}
+void MainWindow::on_pushButton_90_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_61_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_62_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_63_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_66_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_82_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_89_clicked()
+{
+    goToPage1();
+}
+void MainWindow::on_pushButton_55_clicked()
+{
+    goToPage18();
+}
+void MainWindow::on_pushButton_105_clicked()
+{
+    goToPage19();
+}
+void MainWindow::on_pushButton_108_clicked()
+{
+    goToPage17();
+}
+
+
+
+void MainWindow::on_pushButton_109_clicked()
+{
+    goToPage19();
+}
+
+
+void MainWindow::on_pushButton_113_clicked()
+{
+    goToPage17();
+}
+
+
+void MainWindow::on_pushButton_112_clicked()
+{
+    goToPage18();
+}
+
+
+void MainWindow::on_pushButton_106_clicked()
+{
+    goToPage1();
+}
+
+
+void MainWindow::on_pushButton_110_clicked()
+{
+    goToPage1();
+}
+
+
+void MainWindow::on_pushButton_111_clicked()
+{
+    goToPage1();
+}
+
+
+
+
+
+void MainWindow::on_pushButton_176_clicked()
+{
+                //expense_delete_accountant
+    QItemSelectionModel *select = ui->tableView_17->selectionModel();
+    int row = select->currentIndex().row();
+
+    if (row >= 0) {
+        QSqlTableModel *expensemodel = qobject_cast<QSqlTableModel*>(ui->tableView_17->model());
+        if (!expensemodel)
+            return;
+
+        expensemodel->removeRow(row);
+        expensemodel->submitAll();  // Save deletion to DB
+        expensemodel->select();     // Refresh view
+    } else {
+        QMessageBox::warning(this, "No selection", "Please select a row to delete.");
+    }
+
+}
+
+void MainWindow::on_pushButton_175_clicked()
+{
+    // expense_add_accountant
+    QSqlTableModel *expensemodel = qobject_cast<QSqlTableModel*>(ui->tableView_17->model());
+    if (!expensemodel)
+        return;
+
+    // Insert a blank row at the end
+    int row = expensemodel->rowCount();
+    if (!expensemodel->insertRow(row)) {
+        QMessageBox::warning(this, "Error", "Failed to add a new row.");
+        return;
+    }
+
+    // Optional: Select the new row so user can start editing immediately
+    QModelIndex index = expensemodel->index(row, 1);  // Adjust index if needed
+    ui->tableView_17->setCurrentIndex(index);
+    ui->tableView_17->edit(index);
+
+
+}
+
+
+void MainWindow::on_view_only_clicked()
+{
+        // Get input from the UI fields
+        QString name = ui->lineEdit_27->text().trimmed();   // Student name
+        QString admNo = ui->lineEdit_28->text().trimmed();  // Admission number
+
+        // Check if both fields are empty
+        if (name.isEmpty() && admNo.isEmpty()) {
+            QMessageBox::information(this, "Input Required", "Please enter a student name or admission number.");
+            return;
+        }
+
+        QSqlQuery query;
+
+        // Base query string
+        QString baseQuery = R"(
+        SELECT f.Fees_ID,
+               CONCAT(s.first_name, ' ', s.last_name) AS full_name,
+               s.Admission_Number,
+               f.Status,
+               f.Pay_Date
+        FROM fees f
+        JOIN Student s ON f.Student_ID = s.Student_ID
+    )";
+
+        // Append condition based on input
+        if (!admNo.isEmpty()) {
+            baseQuery += " WHERE s.Admission_Number = :admno";
+            query.prepare(baseQuery);
+            query.bindValue(":admno", admNo);
+
+        } else if (!name.isEmpty()) {
+            baseQuery += " WHERE CONCAT(s.first_name, ' ', s.last_name) LIKE :name";
+            query.prepare(baseQuery);
+            query.bindValue(":name", "%" + name + "%");
+        }
+
+        // Execute query first — before allocating model
+        if (!query.exec()) {
+            QMessageBox::warning(this, "Query Error", query.lastError().text());
+            return;  // Early return, no model created yet
+        }
+
+        // Now that query succeeded, create and set model
+        QSqlQueryModel *model = new QSqlQueryModel(this);
+        model->setQuery(std::move(query));  // No warning: move query instead of copy
+
+        // Set model to the table view
+        ui->tableView_14->setModel(model);
+        ui->tableView_14->setColumnHidden(0, true);  // Hide Fees_ID
+        ui->tableView_14->resizeColumnsToContents();
+         ui->tableView_14->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    }
+
+
+
+
+
+    void MainWindow::on_edit_fees_clicked()
+
+    {
+                QString admNo = ui->lineEdit_28->text().trimmed();
+                QString name = ui->lineEdit_27->text().trimmed();
+
+                if (admNo.isEmpty() && name.isEmpty()) {
+                    QMessageBox::information(this, "Input Required", "Please enter an Admission Number or Student Name.");
+                    return;
+                }
+
+                // Create model with fees_edit_view
+                QSqlTableModel *model = new QSqlTableModel(this);
+                model->setTable("fees_edit_view");
+                model->setEditStrategy(QSqlTableModel::OnFieldChange);
+
+                // Prepare filter based on inputs
+                QString filter;
+                if (!admNo.isEmpty()) {
+                    filter = QString("Admission_Number = '%1'").arg(admNo);
+                } else {
+                    // Use LIKE for partial name match
+                    filter = QString("Full_Name LIKE '%%1%'").arg(name);
+                }
+                model->setFilter(filter);
+
+                if (!model->select()) {
+                    QMessageBox::warning(this, "Query Error", model->lastError().text());
+                    return;
+                }
+
+                // Set model to table view
+                ui->tableView_14->setModel(model);
+
+                ui->tableView_14->setColumnHidden(model->fieldIndex("Student_ID"), true);
+                ui->tableView_14->setColumnHidden(model->fieldIndex("Fees_ID"), true);
+                ui->tableView_14->setColumnHidden(model->fieldIndex("Entered_by"), true);
+
+                // Stretch columns to fit view width
+                ui->tableView_14->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+                // Set delegate for proper editing behavior
+                ui->tableView_14->setItemDelegate(new QSqlRelationalDelegate(ui->tableView_14));
+
+                // Enable editing on double click, selected click, or edit key pressed
+                ui->tableView_14->setEditTriggers(
+                    QAbstractItemView::DoubleClicked |
+                    QAbstractItemView::SelectedClicked |
+                    QAbstractItemView::EditKeyPressed
+                    );
+            }
+
+
+
+
+            void MainWindow::on_pushButton_171_clicked()
+            {
+                    QString name = ui->lineEdit_37->text().trimmed();
+                    QString admissionNo = ui->lineEdit_38->text().trimmed();
+                    QString className = ui->comboBox_12->currentText();
+
+                    // Check if all filters are empty or default
+                    bool isNameEmpty = name.isEmpty();
+                    bool isAdmissionNoEmpty = admissionNo.isEmpty();
+                    bool isClassDefault = (className == "Class" || className.isEmpty());
+
+                    if (isNameEmpty && isAdmissionNoEmpty && isClassDefault) {
+                        // No filter entered, so show no results or a message
+                        QMessageBox::information(this, "No Filter", "Please enter at least one filter to search.");
+                        // Clear table if you want
+                        ui->tableView_13->setModel(nullptr);
+                        return;
+                    }
+
+                    QSqlQuery query;
+                    QString baseQuery = R"(
+        SELECT
+            student.Student_ID,
+            student.First_Name,
+            student.Last_Name,
+            CONCAT(student.First_Name, ' ', student.Last_Name) AS StudentName,
+            student.DOB,
+            student.Class_ID,
+            class.Class_Name AS Class,
+            student.Address_ID,
+            address_student.Present_Address,
+            student.Fathers_Qualification,
+            student.Contact_Number,
+            student.Admission_Number
+        FROM student
+        JOIN class ON student.Class_ID = class.Class_ID
+        LEFT JOIN address_student ON student.Address_ID = address_student.Address_ID
+        WHERE 1 = 1
+    )";
+
+                    if (!admissionNo.isEmpty()) {
+                      baseQuery += " AND student.Admission_Number = :admno";
+                    }
+                    if (!name.isEmpty()) {
+                        baseQuery += " AND CONCAT(student.First_Name, ' ', student.Last_Name) LIKE :name";
+                    }
+                    if (!isClassDefault) {
+                        baseQuery += " AND class.Class_Name = :classname";
+                    }
+
+                    query.prepare(baseQuery);
+
+                    if (!admissionNo.isEmpty()) {
+                        query.bindValue(":admno", admissionNo);
+                    }
+                    if (!name.isEmpty()) {
+                        query.bindValue(":name", "%" + name + "%");
+                    }
+                    if (!isClassDefault) {
+                        query.bindValue(":classname", className);
+                    }
+
+                    if (!query.exec()) {
+                        QMessageBox::warning(this, "Query Error", query.lastError().text());
+                        return;
+                    }
+
+                    QSqlQueryModel *model = new QSqlQueryModel(this);
+                    model->setQuery(std::move(query));
+                    ui->tableView_13->setModel(model);
+     }
+
+
+     void MainWindow::on_pushButton_174_clicked()
+     {
+         // Get input from the UI fields
+         QString name = ui->lineEdit_39->text().trimmed();   // Student name
+         QString admNo = ui->lineEdit_40->text().trimmed();  // Admission number
+
+         // Check if both fields are empty
+         if (name.isEmpty() && admNo.isEmpty()) {
+             QMessageBox::information(this, "Input Required", "Please enter a student name or admission number.");
+             return;
+         }
+
+         QString filter;
+
+         // Build the filter string
+         if (!name.isEmpty()) {
+             filter += QString("full_name LIKE '%%1%'").arg(name);
+         }
+         if (!admNo.isEmpty()) {
+             if (!filter.isEmpty()) filter += " AND ";
+             filter += QString("Admission_Number = '%1'").arg(admNo);
+         }
+
+         // Apply filter to model and refresh
+         model->setFilter(filter);
+         model->select();
+
+         // Show filtered results in your table view
+         ui->tableView_20->setModel(model);
+     }
+
+
+
+     void MainWindow::on_pushButton_57_clicked()
+     {
+             QString fullName = ui->lineEdit_10->text().trimmed();  // Full name
+             QString empId = ui->lineEdit_11->text().trimmed();     // Employee ID
+
+             QString filter;
+
+             if (!fullName.isEmpty()) {
+                 filter += QString("CONCAT(First_Name, ' ', Last_Name) LIKE '%%1%'").arg(fullName);
+             }
+
+             if (!empId.isEmpty()) {
+                 if (!filter.isEmpty()) filter += " AND ";
+                 filter += QString("Employee_ID = '%1'").arg(empId);
+             }
+
+             if (fullName.isEmpty() && empId.isEmpty()) {
+                 QMessageBox::information(this, "Input Required", "Please enter Employee Name or ID.");
+                 return;
+             }
+
+             principal1model->setFilter(filter);
+             principal1model->select();  // Apply the filter
+             ui->tableView_6->setModel(principal1model);  // Refresh table view
+
+     }
+
+
+     void MainWindow::on_pushButton_Login_clicked()
+     {
+
+             QString userId = ui->LineEnterID->text().trimmed();
+             QString password = ui->LineEnterPassword->text().trimmed();
+
+             if (userId.isEmpty() || password.isEmpty()) {
+                 QMessageBox::warning(this, "Login Failed", "Please enter both User ID and Password.");
+                 return;
+             }
+
+             QSqlQuery query;
+             query.prepare("SELECT role FROM user_credential WHERE User_id = :userId AND Password = :password");
+             query.bindValue(":userId", userId);
+             query.bindValue(":password", password);
+
+             if (!query.exec()) {
+                 QMessageBox::critical(this, "Database Error", query.lastError().text());
+                 return;
+             }
+
+             if (query.next()) {
+                 QString role = query.value("role").toString();
+
+                 if (role == "accountant") {
+                     goToPage7();
+                 } else if (role == "principal") {
+                     goToPage10();
+                 } else if (role == "teacher") {
+                     goToPage17();
+                 } else if (role == "admin") {
+                     goToPage2();
+                 } else {
+                     QMessageBox::warning(this, "Login Failed", "Unknown role.");
+                 }
+             } else {
+                 QMessageBox::warning(this, "Login Failed", "Invalid User ID or Password.");
+             }
+     }
+
+
+     void MainWindow::on_pushButton_187_clicked()
+     {
+         QString firstName = ui->lineEdit_30->text().trimmed();
+         QString lastName = ui->lineEdit_29->text().trimmed();
+         QString experience = ui->lineEdit_31->text().trimmed();
+         QString contactNo = ui->lineEdit_32->text().trimmed();
+         QString emergencyNo = ui->lineEdit_33->text().trimmed();
+         QString presentAddress = ui->lineEdit_34->text().trimmed();
+         QString permanentAddress = ui->lineEdit_35->text().trimmed();
+         QString hireDate = ui->dateEdit_12->date().toString("yyyy-MM-dd");
+
+         QSqlDatabase db = QSqlDatabase::database();
+         if (!db.isOpen()) {
+             QMessageBox::warning(this, "Database Error", "Database is not open.");
+             return;
+         }
+
+         db.transaction();
+
+         QSqlQuery addressQuery;
+         addressQuery.prepare("INSERT INTO employee_address (Present_Address, Permanent_Address) VALUES (:present, :permanent)");
+         addressQuery.bindValue(":present", presentAddress);
+         addressQuery.bindValue(":permanent", permanentAddress);
+
+         if (!addressQuery.exec()) {
+             QMessageBox::critical(this, "Error", "Failed to insert address: " + addressQuery.lastError().text());
+             db.rollback();
+             return;
+         }
+
+         int addressID = addressQuery.lastInsertId().toInt();
+
+         // Step 2: Insert into employee without default fields
+         QSqlQuery empQuery;
+         empQuery.prepare(R"(
+        INSERT INTO employee (
+            First_Name, Last_Name, Address_ID,
+            Date_of_Joining, Experience,
+            Contact_Num, Emergency_Num
+        ) VALUES (
+            :first, :last, :addrID,
+            :doj, :exp, :contact, :emergency
+        )
+    )");
+
+         empQuery.bindValue(":first", firstName);
+         empQuery.bindValue(":last", lastName);
+         empQuery.bindValue(":addrID", addressID);
+         empQuery.bindValue(":doj", hireDate);
+         empQuery.bindValue(":exp", experience);
+         empQuery.bindValue(":contact", contactNo);
+         empQuery.bindValue(":emergency", emergencyNo);
+
+         if (!empQuery.exec()) {
+             QMessageBox::critical(this, "Error", "Failed to insert employee: " + empQuery.lastError().text());
+             db.rollback();
+             return;
+         }
+
+         db.commit(); // Save changes
+
+         QMessageBox::information(this, "Success", "Employee added successfully.");
+
+         // Clear input fields
+         ui->lineEdit_30->clear();
+         ui->lineEdit_29->clear();
+         ui->lineEdit_31->clear();
+         ui->lineEdit_32->clear();
+         ui->lineEdit_33->clear();
+         ui->lineEdit_34->clear();
+         ui->lineEdit_35->clear();
+     }
+
+
+     void MainWindow::on_pushButton_162_clicked()
+     {
+         // Get input from the UI fields
+         QString name = ui->lineEdit_17->text().trimmed();   // Student name
+         QString admNo = ui->lineEdit_24->text().trimmed();  // Admission number
+
+         // Check if both fields are empty
+         if (name.isEmpty() && admNo.isEmpty()) {
+             QMessageBox::information(this, "Input Required", "Please enter a student name or admission number.");
+             return;
+         }
+
+         QSqlQuery query;
+
+         // Base query string
+         QString baseQuery = R"(
+        SELECT f.Fees_ID,
+               CONCAT(s.first_name, ' ', s.last_name) AS full_name,
+               s.Admission_Number,
+               f.Status,
+               f.Pay_Date,
+               f.Entered_by
+        FROM fees f
+        JOIN Student s ON f.Student_ID = s.Student_ID
+    )";
+         if (!admNo.isEmpty()) {
+             baseQuery += " WHERE s.Admission_Number = :admno";
+             query.prepare(baseQuery);
+             query.bindValue(":admno", admNo);
+
+         } else if (!name.isEmpty()) {
+             baseQuery += " WHERE CONCAT(s.first_name, ' ', s.last_name) LIKE :name";
+             query.prepare(baseQuery);
+             query.bindValue(":name", "%" + name + "%");
+         }
+
+         if (!query.exec()) {
+             QMessageBox::warning(this, "Query Error", query.lastError().text());
+             return;
+         }
+
+         // Now that query succeeded, create and set model
+         QSqlQueryModel *model1 = new QSqlQueryModel(this);
+         model1->setQuery(std::move(query));  // No warning: move query instead of copy
+
+         // Set model to the table view
+         ui->tableView_11->setModel(model1);
+         ui->tableView_11->setColumnHidden(0, true);
+         ui->tableView_11->resizeColumnsToContents();
+         ui->tableView_11->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+     }
+
+
+
+
+     void MainWindow::on_pushButton_186_clicked()
+     {
+             QString firstName = ui->lineEdit_20->text().trimmed();
+             QString lastName = ui->lineEdit_19->text().trimmed();
+             QString whatsappno = ui->lineEdit_21->text().trimmed();
+             QString prevSchool = ui->lineEdit_23->text().trimmed();
+             QString presentAddress = ui->lineEdit_26->text().trimmed();
+             QString contactNo = ui->lineEdit_36->text().trimmed();
+             QString guardianIncome = ui->lineEdit_41->text().trimmed();
+             QString fatherQualification = ui->lineEdit_42->text().trimmed();
+             QString admissionNo = ui->lineEdit_22->text().trimmed();
+             QString dob = ui->dateEdit_7->date().toString("yyyy-MM-dd");
+
+
+             QSqlDatabase db = QSqlDatabase::database();
+             if (!db.isOpen()) {
+                 QMessageBox::warning(this, "Database Error", "Database is not open.");
+                 return;
+             }
+
+             db.transaction();
+
+             // Step 1: Insert into address_student
+             QSqlQuery addrQuery;
+             addrQuery.prepare("INSERT INTO address_student (Present_Address) VALUES (:address)");
+             addrQuery.bindValue(":address", presentAddress);
+
+             if (!addrQuery.exec()) {
+                 QMessageBox::critical(this, "Error", "Failed to insert address: " + addrQuery.lastError().text());
+                 db.rollback();
+                 return;
+             }
+
+             int addressID = addrQuery.lastInsertId().toInt();
+
+             // Step 2: Insert into student
+             QSqlQuery studentQuery;
+             studentQuery.prepare(R"(
+        INSERT INTO student (
+            First_Name, Last_Name, WhatsApp_Num, Previous_School,
+            Address_ID, Contact_Number,
+            Guardian_Income, Fathers_Qualification, Admission_Number,DOB
+        ) VALUES (
+            :first, :last, :whatsapp, :school,
+            :addrID, :contact,
+            :income, :qualification, :admission , :dob
+        )
+    )");
+
+             studentQuery.bindValue(":first", firstName);
+             studentQuery.bindValue(":last", lastName);
+             studentQuery.bindValue(":whatsapp", whatsappno);
+             studentQuery.bindValue(":school", prevSchool);
+             studentQuery.bindValue(":addrID", addressID);
+             studentQuery.bindValue(":contact", contactNo);
+             studentQuery.bindValue(":income", guardianIncome);
+             studentQuery.bindValue(":qualification", fatherQualification);
+             studentQuery.bindValue(":admission", admissionNo);
+             studentQuery.bindValue(":dob", dob);
+
+
+             if (!studentQuery.exec()) {
+                 QMessageBox::critical(this, "Error", "Failed to insert student: " + studentQuery.lastError().text());
+                 db.rollback();
+                 return;
+             }
+
+             db.commit();
+
+             QMessageBox::information(this, "Success", "Student added successfully.");
+
+             // Clear fields
+             ui->lineEdit_20->clear();
+             ui->lineEdit_19->clear();
+             ui->lineEdit_21->clear();
+             ui->lineEdit_23->clear();
+             ui->lineEdit_26->clear();
+             ui->lineEdit_36->clear();
+             ui->lineEdit_41->clear();
+             ui->lineEdit_42->clear();
+             ui->lineEdit_22->clear();
+     }
+
+
+     void MainWindow::on_pushButton_177_clicked()
+     {
+         QItemSelectionModel *selectt = ui->tableView_12->selectionModel();
+         int row = selectt->currentIndex().row();
+
+         if (row < 0) {
+             QMessageBox::warning(this, "No selection", "Please select a row to delete.");
+             return;
+         }
+
+         QSqlTableModel *model = qobject_cast<QSqlTableModel*>(ui->tableView_12->model());
+         if (!model)
+             return;
+
+         // Get Student_ID and Address_ID from the selected row
+         QModelIndex studentIndex = model->index(row, model->fieldIndex("Student_ID"));
+         QModelIndex addressIndex = model->index(row, model->fieldIndex("Address_ID"));
+
+         int studentId = model->data(studentIndex).toInt();
+         int addressId = model->data(addressIndex).toInt();
+
+         // Confirm deletion
+         QMessageBox::StandardButton reply = QMessageBox::question(
+             this,
+             "Confirm Delete",
+             "Are you sure you want to delete this student and their address?",
+             QMessageBox::Yes | QMessageBox::No
+             );
+
+         if (reply != QMessageBox::Yes)
+             return;
+
+         QSqlDatabase db = QSqlDatabase::database();
+         db.transaction();  // Start transaction
+
+         QSqlQuery query;
+
+         // Step 1: Delete student
+         query.prepare("DELETE FROM student WHERE Student_ID = :studentId");
+         query.bindValue(":studentId", studentId);
+         if (!query.exec()) {
+             QMessageBox::critical(this, "Error", "Failed to delete student: " + query.lastError().text());
+             db.rollback();
+             return;
+         }
+
+         // Step 2: Delete address
+         query.prepare("DELETE FROM address_student WHERE Address_ID = :addressId");
+         query.bindValue(":addressId", addressId);
+         if (!query.exec()) {
+             QMessageBox::critical(this, "Error", "Failed to delete address: " + query.lastError().text());
+             db.rollback();
+             return;
+         }
+
+         db.commit();  // Apply changes
+
+         QMessageBox::information(this, "Deleted", "Student and address deleted successfully.");
+         model->select();  // Refresh table view
+     }
+
+
+     void MainWindow::on_pushButton_224_clicked()
+     {
+
+             QString admNo = ui->lineEdit_43->text().trimmed();
+
+             if (admNo.isEmpty()) {
+                 QMessageBox::warning(this, "Input Required", "Please enter an Admission Number.");
+                 return;
+             }
+
+             QSqlQueryModel *studentModel = new QSqlQueryModel(this);
+             QString query = QString(
+                                 "SELECT Student_ID, "
+                                 "CONCAT(First_Name, ' ', Last_Name) AS Student_Name, "
+                                 "Admission_Number "
+                                 "FROM student "
+                                 "WHERE Admission_Number = '%1'").arg(admNo);
+             studentModel->setQuery(query);
+
+             if (studentModel->lastError().isValid()) {
+                 QMessageBox::critical(this, "Query Error", studentModel->lastError().text());
+                 return;
+             }
+
+             ui->tableView_21->setModel(studentModel);
+              ui->tableView_21->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+     }
+
+
+     void MainWindow::on_pushButton_178_clicked()
+     {
+         feesModel = qobject_cast<QSqlTableModel*>(ui->tableView_16->model());
+         if (!feesModel)
+             return;
+
+         int row = feesModel->rowCount();
+         if (!feesModel->insertRow(row)) {
+             QMessageBox::warning(this, "Error", "Failed to add a new row.");
+             return;
+         }
+
+         // Set focus to new row for editing
+         QModelIndex index = feesModel->index(row, 1);  // Start editing from column 0
+         ui->tableView_16->setCurrentIndex(index);
+         ui->tableView_16->edit(index);
+
+
+     }
+
+
+
+
+     void MainWindow::on_pushButton_179_clicked()
+     {
+         principalexmodel = qobject_cast<QSqlTableModel*>(ui->tableView_18->model());
+         if (!principalexmodel)
+             return;
+
+         // Insert a blank row at the end
+         int row = principalexmodel->rowCount();
+         if (!principalexmodel->insertRow(row)) {
+             QMessageBox::warning(this, "Error", "Failed to add a new row.");
+             return;
+         }
+
+         // Optional: Select the new row so user can start editing immediately
+         QModelIndex index = principalexmodel->index(row, 1);  // Adjust index if needed
+         ui->tableView_18->setCurrentIndex(index);
+         ui->tableView_18->edit(index);
+
+
+     }
+
+
+     void MainWindow::on_pushButton_180_clicked()
+     {
+         QItemSelectionModel *select3 = ui->tableView_18->selectionModel();
+         int row = select3->currentIndex().row();
+
+         if (row >= 0) {
+             principalexmodel = qobject_cast<QSqlTableModel*>(ui->tableView_18->model());
+             if (!principalexmodel)
+                 return;
+
+             principalexmodel->removeRow(row);
+             principalexmodel->submitAll();  // Save deletion to DB
+             principalexmodel->select();     // Refresh view
+         } else {
+             QMessageBox::warning(this, "No selection", "Please select a row to delete.");
+         }
+
+     }
+
+
+
+
+
+     void MainWindow::on_pushButton_115_clicked()
+     {
+             QSqlTableModel *employeeModel = qobject_cast<QSqlTableModel*>(ui->tableView_6->model());
+             if (!employeeModel)
+                 return;
+
+             employeeModel->setFilter("");
+             employeeModel->select();
+         }
+
+
+
+         void MainWindow::on_pushButton_181_clicked()
+         {
+             QItemSelectionModel *select3 = ui->tableView_16->selectionModel();
+             int row = select3->currentIndex().row();
+
+             if (row >= 0) {
+                 principalexmodel = qobject_cast<QSqlTableModel*>(ui->tableView_16->model());
+                 if (!principalexmodel)
+                     return;
+
+                 principalexmodel->removeRow(row);
+                 principalexmodel->submitAll();  // Save deletion to DB
+                 principalexmodel->select();     // Refresh view
+             } else {
+                 QMessageBox::warning(this, "No selection", "Please select a row to delete.");
+             }
+
+         }
+
+
